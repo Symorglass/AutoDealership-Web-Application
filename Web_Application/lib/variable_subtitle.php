@@ -1,0 +1,1 @@
+<div class="subtitle"><?php echo $subtitle; ?></div>

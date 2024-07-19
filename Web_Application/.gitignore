@@ -1,0 +1,35 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# samples
+**/example_forms/*
+**/sample.php
+
+# archived
+**/archive/*
+
+# Ignore specific environment files
+.env
+.env.local
+.env.*.local
+
+# Ignore common backup files
+*~
+*.bak
+*.swp
+*.swp
+
+# Ignore directories used by popular IDEs and editors
+**/.idea/*
+/.idea/
+/.vscode/
+
+# Ignore typical folders not meant to be part of the product
+*.log
+/temp/
+/cache/
+/logs/
+/sessions/
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db 

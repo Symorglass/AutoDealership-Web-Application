@@ -1,0 +1,1148 @@
+
+//1.From login.php
+
+$query1 = "SELECT password FROM LoggedInUser WHERE userName = '$enteredUsername '"
+$query2 = "WITH all_users AS(
+  SELECT userName, 'Owner' AS role_type
+  FROM Owner
+  UNION
+  SELECT userName, 'Manager' AS role_type
+  FROM Manager
+  UNION
+  SELECT userName, 'ServiceWriter' AS role_type
+  FROM ServiceWriter
+  UNION
+  SELECT userName, 'InventoryClerk' AS role_type
+  FROM InventoryClerk
+  UNION
+  SELECT userName, 'Salesperson' AS role_type
+  FROM Salesperson
+)
+SELECT role_type
+FROM all_users
+WHERE userName = '$enteredUsername'"
+
+----------------------------------------------------------
+//2.From search_vehicles.php
+
+// run the search query right away after loading search_vehicles.php
+$query = "
+SELECT COUNT(v.VIN) AS count
+FROM Vehicle v
+WHERE v.VIN NOT IN (
+  SELECT s.VIN
+  FROM SalesTransaction s
+)"
+
+//query to search for vehicles
+    $query = "
+WITH vehicle_car AS(
+  SELECT VIN, 'Car' AS vehicle_type
+  FROM Car
+),
+vehicle_convertible AS(
+  SELECT VIN, 'Convertible' AS vehicle_type
+  FROM Convertible
+), 
+vehicle_truck AS(
+  SELECT VIN, 'Truck' AS vehicle_type
+  FROM Truck
+), 
+vehicle_van_minivan AS(
+  SELECT VIN, 'VAN_MiniVAN' AS vehicle_type
+  FROM VAN_MiniVAN
+), 
+vehicle_suv AS(
+  SELECT VIN, 'SUV' AS vehicle_type
+  FROM SUV
+), 
+vehicle_u AS (
+  SELECT VIN, vehicle_type FROM vehicle_car
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_convertible
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_truck
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_van_minivan
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_suv
+),
+
+unsold_vin AS (
+  SELECT v.VIN
+  FROM vehicle_u v
+  WHERE v.VIN NOT IN
+  (SELECT s.VIN
+  FROM SalesTransaction s)
+),
+
+unsold_vehicle_info AS(
+  SELECT v.VIN, vu.vehicle_type, v.manufacturer, v.model_year, v.invoice_price * 1.25 AS list_price, v.description, v.model_name, GROUP_CONCAT(vc.color) AS color
+  FROM vehicle_u vu INNER JOIN Vehicle v INNER JOIN Vehicle_Color vc INNER JOIN unsold_vin uv
+  ON vu.VIN = v.VIN AND vu.VIN=vc.VIN AND vu.VIN = uv.VIN
+  GROUP BY v.VIN
+),
+
+result AS(
+;"
+
+
+//
+ if (!empty($keyword)) {
+        $query = $query . "SELECT vi.VIN, vi.vehicle_type, vi.model_year, vi.manufacturer, vi.model_name, vi.list_price, vi.color, vi.description, vi.description LIKE '%$keyword%' AS description_match_indicator";
+    } else {
+        $query = $query . "SELECT vi.VIN, vi.vehicle_type, vi.model_year, vi.manufacturer, vi.model_name, vi.list_price, vi.color, vi.description, 0 AS description_match_indicator";
+    }
+
+----------------------------------------------------------
+//3.From search_vehicles_previleged.php
+
+//search by VIN with previleged access
+$query = "
+WITH vehicle_car AS(
+  SELECT VIN, 'Car' AS vehicle_type
+  FROM Car
+),
+vehicle_convertible AS(
+  SELECT VIN, 'Convertible' AS vehicle_type
+  FROM Convertible
+), 
+vehicle_truck AS(
+  SELECT VIN, 'Truck' AS vehicle_type
+  FROM Truck
+), 
+vehicle_van_minivan AS(
+  SELECT VIN, 'VAN_MiniVAN' AS vehicle_type
+  FROM VAN_MiniVAN
+), 
+vehicle_suv AS(
+  SELECT VIN, 'SUV' AS vehicle_type
+  FROM SUV
+), 
+vehicle_u AS (
+  SELECT VIN, vehicle_type FROM vehicle_car
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_convertible
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_truck
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_van_minivan
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_suv
+),
+";
+    if ($sold_status == 'both') {
+        $query = $query . "
+            vins AS (
+  SELECT v.VIN
+  FROM vehicle_u v
+),
+";
+    } else if ($sold_status == 'sold') {
+        $query = $query . "
+            vins AS (
+  SELECT v.VIN
+  FROM vehicle_u v
+  WHERE v.VIN IN
+  (SELECT s.VIN
+  FROM SalesTransaction s)
+),
+";
+    } else {
+        $query = $query . "
+            vins AS (
+  SELECT v.VIN
+  FROM vehicle_u v
+  WHERE v.VIN NOT IN
+  (SELECT s.VIN
+  FROM SalesTransaction s)
+),
+";
+    }
+
+
+    $query = $query . "
+vehicle_info AS(
+  SELECT v.VIN, vu.vehicle_type, v.manufacturer, v.model_year, v.invoice_price * 1.25 AS list_price, v.description, v.model_name, GROUP_CONCAT(vc.color) AS color
+  FROM vehicle_u vu INNER JOIN Vehicle v INNER JOIN Vehicle_Color vc INNER JOIN vins uv
+  ON vu.VIN = v.VIN AND vu.VIN=vc.VIN AND vu.VIN = uv.VIN
+  GROUP BY v.VIN
+),
+
+result AS(
+";
+
+    if (!empty($keyword)) {
+        $query = $query . "SELECT vi.VIN, vi.vehicle_type, vi.model_year, vi.manufacturer, vi.model_name, vi.list_price, vi.color, vi.description, vi.description LIKE '%$keyword%' AS description_match_indicator";
+    } else {
+        $query = $query . "SELECT vi.VIN, vi.vehicle_type, vi.model_year, vi.manufacturer, vi.model_name, vi.list_price, vi.color, vi.description, 0 AS description_match_indicator";
+    }
+
+    $query = $query . "
+    FROM vehicle_info vi
+WHERE (0=0";
+
+----------------------------------------------------------
+//4. From add vehicle.php
+
+
+
+        $insert_vehicle_query = "INSERT INTO VEHICLE " .
+            "(VIN, model_name, model_year, invoice_price, added_date, description, manufacturer, userName) VALUES " .
+            "('$VIN', '$model_name', '$model_year', '$invoice_price', '$added_date', '$description', '$manufacturer', '$userName');" 
+
+ $insert_vehicle_color_query = "INSERT INTO VEHICLE_COLOR " .
+                "(VIN, color) VALUES " .
+                "('$VIN', '$value'); "
+        // depends on the vehicle type, insert to respective tables
+        // insert into car
+        $insert_type_query = '';
+        if ($vehicle_type == "car") {
+            $insert_type_query = $insert_type_query . "INSERT INTO CAR " .
+                "(VIN, number_of_doors) VALUES " .
+                "('$VIN', '$number_of_doors'); ";
+        }
+
+        //insert into convertible
+        if ($vehicle_type == "convertible") {
+            $insert_type_query = "INSERT INTO CONVERTIBLE " .
+                "(VIN, roof_type, back_seat_count) VALUES " .
+                "('$VIN', '$roof_type', '$back_seat_count'); ";
+        }
+
+        //insert into truck
+        if ($vehicle_type == "truck") {
+            if (!empty($cargo_cover_type)) {
+                $insert_type_query = "INSERT INTO TRUCK " .
+                    "(VIN, cargo_capacity, cargo_cover_type, number_of_rear_axles) VALUES " .
+                    "('$VIN', '$cargo_capacity', '$cargo_cover_type', '$number_of_rear_axles'); ";
+            } else {
+                $insert_type_query = "INSERT INTO TRUCK " .
+                    "(VIN, cargo_capacity, number_of_rear_axles) VALUES " .
+                    "('$VIN', '$cargo_capacity', '$number_of_rear_axles'); ";
+            }
+        }
+
+        //insert into van minivan
+        if ($vehicle_type == "van_minivan") {
+            $insert_type_query = "INSERT INTO VAN_MINIVAN " .
+                "(VIN, driver_side_door) VALUES " .
+                "('$VIN', '$driver_side_door'); ";
+        }
+
+        //insert into SUV
+        if ($vehicle_type == "SUV") {
+            $insert_type_query = "INSERT INTO SUV " .
+                "(VIN, drivetrain_type, number_of_cupholders) VALUES " .
+                "('$VIN', '$drivetrain_type', '$number_of_cupholders'); ";
+----------------------------------------------------------
+//5. From view_vehicle detail.php
+$query = "
+WITH 
+vehicle_car AS(
+    SELECT VIN, 'Car' AS vehicle_type, number_of_doors AS property1, '' AS property2, '' AS property3
+    FROM Car
+),
+vehicle_convertible AS(
+    SELECT VIN, 'Convertible' AS vehicle_type, back_seat_count AS property1, 0 AS property2, roof_type AS property3 
+    FROM Convertible
+),
+vehicle_truck AS(
+    SELECT VIN, 'Truck' AS vehicle_type, number_of_rear_axles AS property1, cargo_capacity AS property2, cargo_cover_type AS property3
+    FROM Truck
+),
+vehicle_van_minivan AS(
+    SELECT VIN, 'VAN_MiniVAN' AS vehicle_type, driver_side_backdoor AS property1, 0 AS property2, '' AS property3 
+    FROM VAN_MiniVAN
+),
+vehicle_suv AS(
+    SELECT VIN, 'SUV' AS vehicle_type, number_of_cupholders AS property1, 0 AS property2, drivetrain_type AS property3
+    FROM SUV
+),
+vehicle_u AS (
+    SELECT VIN, vehicle_type, property1, property2, property3 FROM vehicle_car
+    UNION
+    SELECT VIN, vehicle_type, property1, property2, property3 FROM vehicle_convertible 
+    UNION
+    SELECT VIN, vehicle_type, property1, property2, property3 FROM vehicle_truck
+    UNION
+    SELECT VIN, vehicle_type, property1, property2, property3 FROM vehicle_van_minivan 
+    UNION
+    SELECT VIN, vehicle_type, property1, property2, property3 FROM vehicle_suv
+),
+vehicle_raw_info AS(
+    SELECT v.VIN, vu.vehicle_type, v.model_year, v.model_name, v.manufacturer, GROUP_CONCAT(vc.color) AS color, v.invoice_price * 1.25 AS list_price, v.description, vu.property1, vu.property2, vu.property3, v.invoice_price, v.added_date, v.userName
+    FROM vehicle_u vu INNER JOIN Vehicle v INNER JOIN Vehicle_Color vc ON vu.VIN = v.VIN AND vu.VIN = vc.VIN
+    GROUP BY v.VIN
+),
+vehicle_formatted_info AS(
+    SELECT v.VIN, v.vehicle_type, v.model_year, v.model_name, v.manufacturer, v.color, v.list_price, v.description, v.property1, v.property2, v.property3, v.invoice_price, v.added_date, 
+    IF(vehicle_type = 'Car', v.property1,NULL) AS number_of_doors, 
+    IF(vehicle_type = 'Convertible', v.property1, NULL) AS back_seat_count, 
+    IF(vehicle_type = 'Convertible', v.property3, NULL) AS roof_type, 
+    IF(vehicle_type = 'Truck', v.property1, NULL) AS number_of_rear_axles, 
+    IF(vehicle_type = 'Truck' , v.property2, NULL) AS cargo_capacity,
+    IF(vehicle_type = 'Truck' , v.property3, NULL) AS cargo_cover_type, 
+    IF(vehicle_type = 'VAN_MiniVAN' , v.property1, NULL) AS driver_side_backdoor, 
+    IF(vehicle_type = 'SUV' , v.property1, NULL) AS number_of_cupholders, 
+    IF(vehicle_type = 'SUV' , v.property1, NULL) AS drivetrain_type
+    FROM vehicle_raw_info v
+)
+";
+
+if ($user_role == "Manager" || $user_role == "Owner") {
+    $query = $query . "
+    ,
+    result AS(
+    SELECT v.VIN, v.vehicle_type, v.model_year, v.model_name, v.manufacturer, v.color, v.list_price, v.invoice_price, v.added_date, 
+    IFNULL(v.description,'') AS description, 
+    IFNULL(v.number_of_doors, 'N/A') AS number_of_doors, 
+    IFNULL(v.back_seat_count, 'N/A') AS back_seat_count, 
+    IFNULL(v.roof_type, 'N/A') AS roof_type, 
+    IFNULL(v.number_of_rear_axles, 'N/A') AS number_of_rear_axles, 
+    IFNULL(v.cargo_capacity, 'N/A') AS cargo_capacity, 
+    IFNULL(v.cargo_cover_type, 'N/A') AS cargo_cover_type, 
+    IFNULL(v.driver_side_backdoor, 'N/A') AS driver_side_backdoor, 
+    IFNULL(v.number_of_cupholders, 'N/A') AS number_of_cupholders, 
+    IFNULL(v. drivetrain_type, 'N/A') AS drivetrain_type
+    FROM vehicle_formatted_info v
+    WHERE v.VIN = '{$VIN}'
+    ),
+
+    inventory_clerk_info AS(
+    SELECT v.VIN, u.first_name, u.last_name
+    FROM vehicle_raw_info v INNER JOIN LoggedInUser u 
+    WHERE v.userName = u.userName
+    ),
+
+    result_inventory_clerk AS( 
+    SELECT i.first_name AS inventory_clerk_first_name, i.last_name AS inventory_clerk_last_name, r1.VIN, r1.vehicle_type, r1.model_year, r1.model_name, r1.manufacturer, r1.color, r1.list_price, r1.invoice_price, r1.added_date, r1.description, r1.number_of_doors, r1.back_seat_count, r1.roof_type, r1.number_of_rear_axles, r1.cargo_capacity, r1.cargo_cover_type, r1.driver_side_backdoor, r1.number_of_cupholders, r1.drivetrain_type
+    FROM result r1 INNER JOIN inventory_clerk_info i ON r1.VIN = i.VIN
+    ),
+
+    sales_info AS(
+    SELECT s.VIN, u.first_name, u.last_name, s.Purchase_Date as sale_date, s.sold_price, s.customerID
+    FROM SalesTransaction s INNER JOIN vehicle_formatted_info v INNER JOIN LoggedInUser u
+    ON s.VIN = v.VIN AND s.userName = u.userName
+    ),
+
+    result_inventory_clerk_sales AS(
+    SELECT s.first_name AS sales_person_first_name, s.last_name AS sales_person_last_name, s.sale_date, s.sold_price, s.customerID, r2.inventory_clerk_first_name, r2.inventory_clerk_last_name, r2.VIN, r2.vehicle_type, r2.model_year, r2.model_name, r2.manufacturer, r2.color, r2.list_price, r2.invoice_price, r2.added_date, r2.description, r2.number_of_doors, r2.back_seat_count, r2.roof_type, r2.number_of_rear_axles, r2.cargo_capacity, r2.cargo_cover_type, r2.driver_side_backdoor, r2.number_of_cupholders, r2.drivetrain_type
+    FROM result_inventory_clerk r2 LEFT JOIN sales_info s
+    ON r2.VIN = s.VIN
+    ),
+
+    customer_i AS(
+    SELECT c.customerID, concat(i.first_name, i.last_name) AS Name, '' AS primary_contact_name, '' AS primary_contact_title, IFNULL(c.email, '') AS email, c.phone_number, c.street_address, c.city, c.state, c.postal_code
+    FROM Customer c INNER JOIN Individual i ON c.customerID = i.customerID
+    ),
+
+    customer_b AS(
+    SELECT c.customerID, b.business_name AS Name, b.primary_contact_name, b.primary_contact_title, IFNULL(c.email, '') AS email, c.phone_number, c.street_address, c.city, c.state, c.postal_code, b.tax_identification_number
+    FROM Customer c INNER JOIN Business b
+    ON c.customerID = b.customerID
+    ),
+
+    customer_u AS(
+    SELECT CI.customerID, CI.Name, CI.primary_contact_name, CI.primary_contact_title, CI.email, CI.phone_number, CI.street_address, CI.city, CI.state, CI.postal_code, '' AS tax_identification_number
+    FROM customer_i CI
+    UNION
+    SELECT CB.customerID, CB.Name, CB.primary_contact_name, CB.primary_contact_title, CB.email, CB.phone_number, CB.street_address, CB.city, CB.state, CB.postal_code, CB.tax_identification_number
+    FROM customer_b CB
+    )
+
+    ";
+
+    $query = $query . "
+    SELECT r3.sales_person_first_name, r3.sales_person_last_name, r3.sale_date, r3.sold_price, r3.customerID, r3.inventory_clerk_first_name, r3.inventory_clerk_last_name, r3.VIN, r3.vehicle_type, r3.model_year, r3.model_name, r3.manufacturer, r3.color, r3.list_price, r3.invoice_price, r3.added_date, c.Name, c.primary_contact_name, c.primary_contact_title, c.email, c.phone_number, c.street_address, c.city, c.state, c.postal_code, c.tax_identification_number,
+    IFNULL(r3.description,'') AS description,
+    IFNULL(r3.number_of_doors, 'N/A') AS number_of_doors, 
+    IFNULL(r3.back_seat_count, 'N/A') AS back_seat_count,
+    IFNULL(r3.roof_type, 'N/A') AS roof_type, 
+    IFNULL(r3.number_of_rear_axles, 'N/A') AS number_of_rear_axles, 
+    IFNULL(r3.cargo_capacity, 'N/A') AS cargo_capacity, 
+    IFNULL(r3.cargo_cover_type, 'N/A') AS cargo_cover_type, 
+    IFNULL(r3.driver_side_backdoor, 'N/A') AS driver_side_backdoor, 
+    IFNULL(r3.number_of_cupholders, 'N/A') AS number_of_cupholders, 
+    IFNULL(r3.drivetrain_type, 'N/A') AS drivetrain_type
+    FROM result_inventory_clerk_sales r3 LEFT JOIN customer_u c 
+    ON r3.customerID = c.customerID
+    ";
+} else {
+    $query = $query . "
+SELECT v.VIN, v.vehicle_type, v.model_year, v.model_name, v.manufacturer, v.color, v.list_price, v.invoice_price, v.added_date,
+IFNULL(v.description,'') AS description,
+IFNULL(v.number_of_doors, 'N/A') AS number_of_doors, 
+IFNULL(v.back_seat_count, 'N/A') AS back_seat_count,
+IFNULL(v.roof_type, 'N/A') AS roof_type, 
+IFNULL(v.number_of_rear_axles, 'N/A') AS number_of_rear_axles, 
+IFNULL(v.cargo_capacity, 'N/A') AS cargo_capacity, 
+IFNULL(v.cargo_cover_type, 'N/A') AS cargo_cover_type, 
+IFNULL(v.driver_side_backdoor, 'N/A') AS driver_side_backdoor, 
+IFNULL(v.number_of_cupholders, 'N/A') AS number_of_cupholders, 
+IFNULL(v.drivetrain_type, 'N/A') AS drivetrain_type
+FROM vehicle_formatted_info v WHERE VIN = '{$VIN}' ";
+}
+
+----------------------------------------------------------
+//6. From update_manufacturer.php
+
+$query = "SELECT distinct manufacturer FROM manufacturer;";
+
+----------------------------------------------------------
+//7. From View repair.php
+
+// validate if vehicle is sold (no repair should exist for unsold vehicle)
+                $query = "WITH sold_vehicle AS (
+                    SELECT V.VIN, V.model_year, V.model_name, V.manufacturer 
+                    FROM Vehicle V
+                    INNER JOIN SalesTransaction AS ST
+                    ON V.VIN = ST.VIN)
+                    SELECT S.VIN FROM sold_vehicle S
+                    WHERE S.VIN = '$VIN';";
+
+ 
+//display detail of VIN
+$query = "
+                    WITH vehicle_car AS (
+                        SELECT VIN, 'Car' AS vehicle_type 
+                        FROM Car ),
+                    vehicle_convertible AS (
+                        SELECT VIN, 'Convertible' AS vehicle_type 
+                        FROM Convertible),
+                    vehicle_truck AS (
+                        SELECT VIN, 'Truck' AS vehicle_type 
+                        FROM Truck ),
+                    vehicle_van_minivan AS (
+                        SELECT VIN, 'VAN_MiniVAN' AS vehicle_type 
+                        FROM VAN_MiniVAN ),
+                    vehicle_suv AS (
+                        SELECT VIN, 'VAN_MiSUVniVAN' AS vehicle_type 
+                        FROM SUV ),
+                    vehicle_u AS (
+                        SELECT VIN, vehicle_type FROM vehicle_car
+                        UNION
+                        SELECT VIN, vehicle_type FROM vehicle_convertible 
+                        UNION
+                        SELECT VIN, vehicle_type FROM vehicle_truck
+                        UNION
+                        SELECT VIN, vehicle_type FROM vehicle_van_minivan 
+                        UNION
+                        SELECT VIN, vehicle_type FROM vehicle_suv),
+                    vehicle_info AS (
+                        SELECT v.VIN, vu.vehicle_type, v.manufacturer, v.model_year, v.model_name, GROUP_CONCAT(vc.color) AS color
+                        FROM vehicle_u vu 
+                        INNER JOIN Vehicle v 
+                        INNER JOIN Vehicle_Color vc
+                        ON vu.VIN = v.VIN AND vu.VIN=vc.VIN
+                        GROUP BY v.VIN)
+                    SELECT v.VIN, v.vehicle_type, v.manufacturer, v.model_year, v.model_name, v.color
+                    FROM vehicle_info v
+                    WHERE v.VIN = '$VIN';"
+
+
+----------------------------------------------------------
+//8. From update repair.php
+
+// Add part
+                $query = "INSERT INTO Part(VIN, start_date, part_number, vendor_name, price, quantity)
+                    VALUES('$VIN', '$start_date', '$part_number', '$vendor_name', '$price', '$quantity');";
+
+    // Complete repair on click
+    if (isset($_POST['complete'])) {
+        $query = "UPDATE Repair
+                SET completion_date = CURDATE() 
+                WHERE VIN = '$VIN' AND completion_date IS NULL;";
+        $repair_complete = mysqli_query($db, $query);
+        if (isset($_POST['complete']) && mysqli_affected_rows($db) == -1) {
+            array_push($error_msg, "UPDATE ERROR:Failed to complete repair ... <br>" . __FILE__ . " line:" . __LINE__);
+        }
+    }
+
+    // Display the updated repair in every update and complete
+    $query = "SELECT VIN, start_date, completion_date, odometer_readout, labor_charge, description
+        FROM Repair
+        WHERE VIN = '$VIN' AND DATE(start_date) = DATE('$start_date');";
+    $repair_record = mysqli_query($db, $query);
+    $row_repair = mysqli_fetch_array($repair_record, MYSQLI_ASSOC);
+
+    // Display added parts
+    $query = "SELECT VIN, start_date, part_number, vendor_name, price, quantity
+        FROM Part
+        WHERE VIN = '$VIN' AND DATE(start_date) = DATE('$start_date');";
+    $part_record = mysqli_query($db, $query);
+    if (!is_bool($part_record) && mysqli_num_rows($part_record) > 0) {
+        $row_parts = mysqli_fetch_array($part_record, MYSQLI_ASSOC);
+    }
+
+----------------------------------------------------------
+//9. From add_customer_for_sale & add_customer_for_repair.php
+
+
+    // Execute the insert
+    if (empty($email)) {
+        $insert_customer_query = "INSERT INTO CUSTOMER " .
+            "(phone_number, city, street_address,postal_code,state) VALUES" .
+            "('$phone_number', '$city', '$street_address','$postal_code','$state'); ";
+
+
+    } else {
+        $insert_customer_query = "INSERT INTO CUSTOMER " .
+            "(phone_number, city, street_address,postal_code,state,email) VALUES" .
+            "('$phone_number', '$city', '$street_address','$postal_code','$state','$email') ;";
+    }
+
+
+    if (!empty($phone_number) || !empty($city) || !empty($street_address) || !empty($postal_code) || !empty($state)) {
+        $result = mysqli_query($db, $insert_customer_query);
+        include('lib/show_queries.php');
+        if (mysqli_affected_rows($db) == -1) {
+            array_push($error_msg, "Customer insertion failed, please check!" . NEWLINE);
+        }
+    }
+
+    // Get latest customerId
+    $customer_query = "SELECT customerID " .
+        "FROM customer " .
+        "ORDER BY customerID DESC " .
+        "LIMIT 1;";
+    $result = mysqli_query($db, $customer_query);
+    include('lib/show_queries.php');
+
+    $row = mysqli_fetch_array($result, MYSQLI_ASSOC);
+    $customerID = $row['customerID'];
+
+    // Insert individual/business
+    if (!empty($Tax_Identification_Number) && !empty($business_name) && !empty($primary_contact_name) && !empty($primary_contact_title)) {
+        $query = "INSERT INTO Business " .
+            "(customerID, Tax_Identification_Number, business_name, primary_contact_name, primary_contact_title) " .
+            "VALUES ('$customerID','$Tax_Identification_Number','$business_name', '$primary_contact_name', '$primary_contact_title'); ";
+        $result = mysqli_query($db, $query);
+        include('lib/show_queries.php');
+
+        if (mysqli_affected_rows($db) == -1) {
+            // failed, show error, no redirect.
+            array_push($error_msg, "Business Customer specifics insertion failed, please check!" . NEWLINE);
+        } else {
+            // if successful, redirect to add_sale page
+            header(REFRESH_TIME . 'url=add_sale.php');
+        }
+    }
+
+    if (!empty($Driver_License_Number) && !empty($first_name) && !empty($last_name)) {
+        $query = "INSERT INTO Individual " .
+            "(customerID, Driver_License_Number, first_name, last_name) " .
+            "VALUES ('$customerID','$Driver_License_Number','$first_name', '$last_name'); ";
+        $result = mysqli_query($db, $query);
+        include('lib/show_queries.php');
+
+        if (mysqli_affected_rows($db) == -1) {
+            // failed, show error, no redirect.
+            array_push($error_msg, "Individual Customer specifics insertion failed, please check!" . NEWLINE);
+        } else {
+            // if successful, redirect to add_sale page
+            header(REFRESH_TIME . 'url=view_repair.php');
+        }
+    }
+
+----------------------------------------------------------
+//10. From add_repair_search_customer.php
+
+            $query = "
+            WITH customer_i AS(
+                SELECT c.customerID, i.Driver_License_Number AS identifier 
+                FROM Customer c INNER JOIN Individual i 
+                ON c.customerID = i.customerID),
+            customer_b AS(
+                SELECT c.customerID, b.Tax_Identification_Number AS identifier 
+                FROM Customer c INNER JOIN Business b
+                ON c.customerID = b.customerID),
+            customer_u AS(
+                (SELECT CI.customerID, CI.identifier FROM customer_i CI)
+                UNION
+                (SELECT CB.customerID, CB.identifier FROM customer_b CB))
+            SELECT customerID
+            FROM customer_u
+            WHERE identifier = '$customerID';";
+
+----------------------------------------------------------
+//11. From report_sales_by_color.php
+
+$query = "
+                   
+WITH
+
+sales_with_cutoff AS(
+SELECT S.VIN, S.Purchase_Date, (SELECT MAX(SS.Purchase_Date) FROM SalesTransaction SS) AS last_avaliable_sale_date, DATE_ADD((SELECT MAX(SSS.Purchase_Date) FROM SalesTransaction SSS),INTERVAL -30 DAY) AS month_cutoff, DATE_ADD((SELECT MAX(SSSS.Purchase_Date) FROM SalesTransaction SSSS),INTERVAL -1 YEAR) AS year_cutoff
+FROM SalesTransaction S),
+
+single_color_vehicle AS (
+SELECT V.VIN, VC.color AS color
+FROM Vehicle V NATURAL JOIN Vehicle_Color VC
+GROUP BY V.VIN
+HAVING COUNT(VC.VIN) = 1
+),
+
+
+
+multi_color_vehicle AS (
+SELECT V.VIN, VC.color AS color
+FROM Vehicle V NATURAL JOIN Vehicle_Color VC
+GROUP BY V.VIN
+HAVING NOT COUNT(V.VIN) = 1
+),
+
+
+
+vehicles_by_color AS (
+SELECT MV.VIN, 'multiple' as color
+FROM multi_color_vehicle MV
+UNION
+SELECT SV.VIN, SV.color
+FROM single_color_vehicle SV
+),
+
+
+
+one_month_report AS (
+SELECT VBC.color, IFNULL(COUNT(VBC.VIN), 0) AS one_month_sales_count
+FROM vehicles_by_color VBC NATURAL JOIN sales_with_cutoff S
+WHERE S.Purchase_Date > S.month_cutoff
+GROUP BY VBC.color
+),
+
+
+
+one_year_report AS (
+SELECT VBC.color, COUNT(VBC.VIN) AS one_year_sales_count
+FROM vehicles_by_color VBC NATURAL JOIN sales_with_cutoff S
+WHERE S.Purchase_Date > S.year_cutoff
+GROUP BY VBC.color
+),
+
+all_time_report AS (
+SELECT VBC.color, COUNT(VBC.VIN) AS alltime_sales_count
+FROM vehicles_by_color VBC NATURAL JOIN sales_with_cutoff S
+GROUP BY VBC.color
+),
+
+
+
+report AS (
+SELECT all_time_report.color AS Color, IFNULL(one_month_report.one_month_sales_count, 0) AS one_month_sales_count, IFNULL(one_year_report.one_year_sales_count, 0) AS one_year_sales_count, IFNULL(all_time_report.alltime_sales_count, 0) AS alltime_sales_count
+FROM one_month_report
+RIGHT JOIN one_year_report
+ON one_month_report.color = one_year_report.color
+RIGHT JOIN all_time_report
+ON one_year_report.color = all_time_report.color
+),
+
+
+
+all_color_options AS(
+SELECT Color
+FROM report
+UNION
+SELECT color AS Color
+FROM Color
+)
+
+
+
+SELECT A.Color, IFNULL(one_month_sales_count, 0) AS one_month_sales_count , IFNULL(one_year_sales_count, 0) AS one_year_sales_count, IFNULL(alltime_sales_count, 0) AS alltime_sales_count
+FROM report R
+RIGHT JOIN all_color_options A
+ON R.Color = A.Color
+ORDER BY Color ASC
+";
+
+----------------------------------------------------------
+//12. From report_sales_by_type.php
+
+$query = "                   
+WITH
+sales_with_cutoff AS(
+  SELECT S.VIN, S.Purchase_Date, (SELECT MAX(SS.Purchase_Date) FROM SalesTransaction SS) AS last_avaliable_sale_date, DATE_ADD((SELECT MAX(SSS.Purchase_Date) FROM SalesTransaction SSS),INTERVAL -30 DAY) AS month_cutoff, DATE_ADD((SELECT MAX(SSSS.Purchase_Date) FROM SalesTransaction SSSS),INTERVAL -1 YEAR) AS year_cutoff
+  FROM SalesTransaction S), 
+
+vehicle_type AS(
+  SELECT 'Car' AS vehicle_type
+  UNION
+  SELECT 'Convertible' AS vehicle_type
+  UNION
+  SELECT 'Truck' AS vehicle_type
+  UNION
+  SELECT 'VAN_MiniVAN' AS vehicle_type
+  UNION
+  SELECT 'SUV' AS vehicle_type
+  ),
+vehicle_car AS(
+  SELECT VIN, 'Car' AS vehicle_type
+  FROM Car
+),
+vehicle_convertible AS(
+  SELECT VIN, 'Convertible' AS vehicle_type
+  FROM Convertible
+), 
+vehicle_truck AS(
+  SELECT VIN, 'Truck' AS vehicle_type
+  FROM Truck
+), 
+vehicle_van_minivan AS(
+  SELECT VIN, 'VAN_MiniVAN' AS vehicle_type
+  FROM VAN_MiniVAN
+), 
+vehicle_suv AS(
+  SELECT VIN, 'SUV' AS vehicle_type
+  FROM SUV
+), 
+vehicle_u AS (
+  SELECT VIN, vehicle_type FROM vehicle_car
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_convertible
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_truck
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_van_minivan
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_suv
+),
+one_month_report AS (
+  SELECT V.vehicle_type, COUNT(V.VIN) AS one_month_sales_count
+  FROM sales_with_cutoff  S NATURAL JOIN vehicle_u V 
+  WHERE S.Purchase_Date > S.month_cutoff
+  GROUP BY vehicle_type
+),
+one_year_report AS (
+  SELECT V.vehicle_type, COUNT(V.VIN) AS one_year_sales_count
+  FROM sales_with_cutoff S NATURAL JOIN vehicle_u V 
+  WHERE S.Purchase_Date > S.year_cutoff
+  GROUP BY vehicle_type
+),
+
+
+all_time_report AS (
+  SELECT V.vehicle_type, COUNT(V.VIN) AS alltime_sales_count
+  FROM sales_with_cutoff S NATURAL JOIN vehicle_u V 
+  GROUP BY vehicle_type
+),
+
+report AS(
+  SELECT all_time_report.vehicle_type AS vehicle_type, one_month_report.one_month_sales_count, one_year_report.one_year_sales_count, all_time_report.alltime_sales_count
+  FROM one_month_report
+  RIGHT JOIN one_year_report
+  ON one_month_report.vehicle_type = one_year_report.vehicle_type
+  RIGHT JOIN all_time_report
+  ON one_year_report.vehicle_type = all_time_report.vehicle_type
+  )
+
+SELECT VT.vehicle_type, IFNULL(R.one_month_sales_count, 0) AS one_month_sales_count, IFNULL(R.one_year_sales_count, 0) AS one_year_sales_count, IFNULL(R.alltime_sales_count,0) AS alltime_sales_count
+FROM report R
+RIGHT JOIN vehicle_type VT
+ON R.vehicle_type = VT.vehicle_type
+ORDER BY R.vehicle_type ASC
+
+";
+
+----------------------------------------------------------
+//13. From report_sales_by_manufacturer.php
+
+$query = "
+
+WITH 
+sales_with_cutoff AS(
+  SELECT S.VIN, S.Purchase_Date, (SELECT MAX(SS.Purchase_Date) FROM SalesTransaction SS) AS last_avaliable_sale_date, DATE_ADD((SELECT MAX(SSS.Purchase_Date) FROM SalesTransaction SSS),INTERVAL -30 DAY) AS month_cutoff, DATE_ADD((SELECT MAX(SSSS.Purchase_Date) FROM SalesTransaction SSSS),INTERVAL -1 YEAR) AS year_cutoff
+  FROM SalesTransaction S), 
+
+one_month_report AS (
+  SELECT V.manufacturer, COUNT(V.VIN) AS one_month_sales_count
+  FROM sales_with_cutoff S NATURAL JOIN Vehicle V 
+  WHERE S.Purchase_Date > S.month_cutoff
+  GROUP BY manufacturer
+),
+one_year_report AS (
+   SELECT V.manufacturer, COUNT(V.VIN) AS one_year_sales_count
+  FROM sales_with_cutoff  S NATURAL JOIN Vehicle V 
+  WHERE S.Purchase_Date > S.year_cutoff
+  GROUP BY manufacturer
+),
+all_time_report AS (
+   SELECT V.manufacturer, COUNT(V.VIN) AS alltime_sales_count
+  FROM sales_with_cutoff  S NATURAL JOIN Vehicle V 
+  GROUP BY manufacturer
+),
+
+report AS(
+  SELECT all_time_report.manufacturer AS manufacturer, one_month_report.one_month_sales_count, one_year_report.one_year_sales_count, all_time_report.alltime_sales_count
+  FROM one_month_report
+  RIGHT JOIN one_year_report
+  ON one_month_report.manufacturer = one_year_report.manufacturer
+  RIGHT JOIN all_time_report
+  ON one_year_report.manufacturer = all_time_report.manufacturer
+  )
+
+SELECT R.manufacturer, IFNULL(R.one_month_sales_count, 0) AS one_month_sales_count, IFNULL(R.one_year_sales_count, 0) AS one_year_sales_count, IFNULL(R.alltime_sales_count,0) AS alltime_sales_count
+FROM report R
+ORDER BY R.manufacturer ASC";
+
+----------------------------------------------------------
+//14. From gross_customer_income.php
+
+$query = "WITH
+customer_i AS(
+  SELECT c.customerID, concat(i.first_name, ' ', i.last_name) AS Name
+  FROM Customer c LEFT OUTER JOIN Individual i
+ON c.customerID = i.customerID
+),
+
+customer_b AS(
+  SELECT c.customerID, b.business_name AS Name
+  FROM Customer c LEFT OUTER JOIN Business b
+  ON c.customerID = b.customerID
+),
+
+customer_u AS(
+  SELECT COALESCE (CI.Name, CB.Name) AS Name, CI.customerID 
+  FROM customer_i CI LEFT OUTER JOIN customer_b CB
+  ON CI.customerID = CB.customerID
+),
+
+
+
+Vehicle_sale AS(
+SELECT
+  v.VIN, s.customerID, s.Purchase_Date, s.sold_price AS single_sale_income
+  From Vehicle v INNER JOIN SalesTransaction s
+  ON v.VIN = s.VIN
+),
+
+Vehicle_repair AS(
+SELECT
+  r.VIN, r.customerID, r.start_date,
+  IFNULL(r.labor_charge, 0) AS labor_charge,
+  p.quantity, p.price,
+  IFNULL(r.labor_charge, 0) + p.quantity * p.price AS single_repair_income
+  FROM Repair r INNER JOIN Part p
+  ON p.VIN = r.VIN and p.start_date = r.start_date
+),
+
+Customer_sale AS( 
+  SELECT customerID AS customerID_sale,
+  MIN(Purchase_Date) AS first_sale_date,
+  MAX(Purchase_Date) AS most_recent_sale_date,
+  SUM(single_sale_income) AS total_sale_income,
+  COUNT(*) AS sales_count
+  FROM Vehicle_sale
+  GROUP BY customerID_sale
+),
+
+Customer_repair AS( 
+  SELECT customerID AS customerID_repair,
+  MIN(start_date) AS first_repair_date,
+  MAX(start_date) AS most_recent_repair_date,
+  SUM(single_repair_income) AS total_repair_income,
+  COUNT(*) AS repair_count
+  FROM Vehicle_repair
+  GROUP BY customerID_repair
+),
+
+Customer_sale_repair_u1 AS (SELECT * FROM Customer_sale cs
+LEFT JOIN Customer_repair cr ON cs.customerID_sale = cr.customerID_repair
+UNION  
+SELECT * FROM Customer_sale cs
+RIGHT JOIN Customer_repair cr ON cs.customerID_sale = cr.customerID_repair 
+),
+
+Customer_sale_repair_u2 AS (SELECT COALESCE (customerID_sale, customerID_repair) AS customerID,first_sale_date, most_recent_sale_date, total_sale_income, sales_count, first_repair_date, most_recent_repair_date, total_repair_income, repair_count
+    FROM Customer_sale_repair_u1
+
+)
+
+
+
+SELECT customer_u.customerID AS customerID, 
+date(LEAST( IFNULL(first_sale_date, '9999-12-31'), IFNULL(first_repair_date, '9999-12-31'))) AS first_date, date(GREATEST( IFNULL(most_recent_sale_date, '1000-01-01'), IFNULL(most_recent_repair_date, '1000-01-01')))  AS most_recent_date, IFNULL(total_sale_income, 0) + IFNULL(total_repair_income, 0)  AS total_income, IFNULL(sales_count,0) AS sales_count, IFNULL(repair_count,0) AS repair_count, customer_u.Name
+FROM Customer_sale_repair_u2 INNER JOIN customer_u
+ON Customer_sale_repair_u2.customerID = customer_u.customerID
+ORDER BY total_income DESC, most_recent_date DESC
+LIMIT 15
+";
+
+----------------------------------------------------------
+//15. From gross_customer_income_drilldown.php
+
+                    $query =
+                        "WITH
+Vehicle_repair AS(
+  SELECT
+  r.VIN, r.customerID, r.userName,
+  r.start_date,
+  r.completion_date AS end_date,
+  r.odometer_readout,
+  r.labor_charge AS labor_cost,
+  p.quantity * p.price as parts_cost,
+  r.labor_charge + p.quantity * p.price AS total_cost
+  FROM Repair r INNER JOIN Part p
+  ON p.VIN = r.VIN AND p.start_date = r.start_date
+)
+
+SELECT r.VIN,
+r.start_date, r.end_date,
+r.odometer_readout, r.VIN,
+r.labor_cost, r.parts_cost, r.total_cost,
+CONCAT (u.first_name, ' ',  u.last_name) AS spName
+From Vehicle_repair r INNER JOIN LoggedInUser u
+ON r.userName = u.userName
+WHERE r.customerID = '$customerID'
+ORDER BY start_date DESC, IF(ISNULL(end_date),0,1) DESC, VIN ASC
+
+";
+
+----------------------------------------------------------
+//16. From report_repairs.php
+//Repairs by Manufacturer/Type/Model Report
+
+ $query = "
+WITH repair_records AS (
+SELECT R.VIN AS VIN, R.start_date AS start_date, labor_cost, part_cost, COALESCE(labor_cost + part_cost, labor_cost, part_cost, 0) AS total_cost
+FROM (
+(SELECT VIN, start_date, labor_charge AS labor_cost FROM Repair) AS R
+LEFT JOIN 
+(SELECT VIN, start_date, sum(price * quantity) AS part_cost
+FROM Part GROUP BY VIN, start_date) AS P 
+ON R.VIN = P.VIN AND R.start_date = P.start_date)
+),
+ 
+report AS (
+  SELECT
+  V.manufacturer as manufacturer,
+  COUNT( DISTINCT R.VIN, R.start_date) AS repair_count,
+  SUM(R.labor_cost) AS total_labor_cost,
+  SUM(R.total_cost) AS total_repair_cost,
+  SUM(R.part_cost) AS total_part_cost
+  FROM (Vehicle AS V LEFT JOIN repair_records AS R
+        ON V.VIN = R.VIN)
+  GROUP BY V.manufacturer
+)
+
+SELECT m.manufacturer,
+IFNULL(r.repair_count,0) AS repair_count,
+IFNULL(r.total_labor_cost,0) AS total_labor_cost,
+IFNULL(r.total_part_cost,0) AS total_part_cost,
+IFNULL(r.total_repair_cost,0) AS total_repair_cost
+FROM report r RIGHT JOIN Manufacturer m
+ON r.manufacturer = m.manufacturer
+ORDER BY m.manufacturer ASC
+"
+;
+
+----------------------------------------------------------
+//17. From report_repairs_drilldown.php
+//Repairs by Manufacturer/Type/Model Report drilldown
+
+ $query = "
+WITH
+vehicle_car AS(
+  SELECT VIN, 'Car' AS vehicle_type
+  FROM Car
+),
+vehicle_convertible AS(
+  SELECT VIN, 'Convertible' AS vehicle_type
+  FROM Convertible
+), 
+vehicle_truck AS(
+  SELECT VIN, 'Truck' AS vehicle_type
+  FROM Truck
+), 
+vehicle_van_minivan AS(
+  SELECT VIN, 'VAN_MiniVAN' AS vehicle_type
+  FROM VAN_MiniVAN
+), 
+vehicle_suv AS(
+  SELECT VIN, 'SUV' AS vehicle_type
+  FROM SUV
+), 
+vehicle_u AS (
+  SELECT VIN, vehicle_type FROM vehicle_car
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_convertible
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_truck
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_van_minivan
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_suv
+),
+
+vehicle_info AS(
+  SELECT v.VIN, vu.vehicle_type, v.manufacturer, v.model_name
+  FROM vehicle_u vu INNER JOIN Vehicle v
+  ON vu.VIN = v.VIN
+),
+
+repair_records AS(
+  SELECT r.VIN, r.start_date,
+  IFNULL(r.labor_charge,0) AS labor_charge,
+  p.quantity * p.price AS parts_cost,
+  IFNULL(r.labor_charge,0) + p.quantity * p.price AS total_cost
+  FROM Repair r INNER JOIN Part p
+  ON p.VIN = r.VIN and p.start_date = r.start_date
+),
+
+manufacturer_vehicle_repair_records AS(
+  SELECT v.VIN, v.vehicle_type, v.manufacturer, v.model_name,
+  r.start_date, r.labor_charge, r.parts_cost, r.total_cost
+  FROM repair_records r INNER JOIN vehicle_info v
+  ON r.VIN = v.VIN
+  WHERE v.manufacturer = '$manufacturer'
+),
+
+repair_records_by_vehicle_type AS(
+  SELECT NULL AS category,
+  rr.vehicle_type AS sub_name_for_ordering,
+  COUNT(rr.VIN) AS repair_count,
+  SUM(rr.labor_charge) AS total_labor_costs,
+  SUM(rr.parts_cost) AS total_parts_costs,
+  SUM(rr.total_cost) AS total_costs
+  FROM manufacturer_vehicle_repair_records rr
+  GROUP BY rr.vehicle_type
+  ORDER BY rr.vehicle_type ASC
+),
+
+repair_records_by_model_name AS(
+  SELECT rr.model_name AS category,
+  rr.vehicle_type AS sub_name_for_ordering,
+  COUNT(rr.VIN) AS repair_count,
+  SUM(rr.labor_charge) AS total_labor_costs,
+  SUM(rr.parts_cost) AS total_parts_costs,
+  SUM(rr.total_cost) AS total_costs
+  FROM manufacturer_vehicle_repair_records rr
+  GROUP BY CONCAT(rr.vehicle_type, rr.model_name)
+  ORDER BY COUNT(rr.VIN) DESC
+),
+
+repair_union AS(
+  SELECT category,sub_name_for_ordering, repair_count,total_labor_costs,total_parts_costs,total_costs
+  FROM repair_records_by_vehicle_type
+  UNION
+  SELECT category,sub_name_for_ordering, repair_count,total_labor_costs,total_parts_costs,total_costs
+  FROM repair_records_by_model_name
+)
+
+SELECT 
+sub_name_for_ordering,
+ category, repair_count, total_labor_costs,total_parts_costs,total_costs
+FROM repair_union
+ORDER BY sub_name_for_ordering ASC, repair_count DESC
+
+"
+;
+
+----------------------------------------------------------
+18. From report_below_cost_sales.php
+
+                    $query = "
+                    WITH report AS(  
+                    SELECT S.Purchase_Date, V.invoice_price, S.sold_price, CONCAT(S.sold_price/V.invoice_price * 100,'%') AS ratio, SP.first_name, SP.last_name, S.customerID  
+                    FROM SalesTransaction S INNER JOIN Vehicle V INNER JOIN LoggedInUser SP ON S.VIN = V.VIN AND S.userName = SP.userName  WHERE S.sold_price < V.invoice_price), 
+                    customer_i AS(  SELECT C.customerID, concat(I.first_name,' ', I.last_name) AS Name   
+                    FROM Customer C INNER JOIN Individual I  ON I.customerID = C.customerID), 
+                    customer_b AS(  SELECT C.customerID, B.business_name AS Name  
+                    FROM Customer C INNER JOIN Business B  ON B.customerID = C.customerID), 
+                    customer_u AS(  SELECT CI.customerID, CI.Name  FROM customer_i CI  UNION  SELECT CB.customerID, CB.Name FROM customer_b CB) 
+                    SELECT R.Purchase_Date AS sale_date, R.invoice_price, R.sold_price, R.ratio, C.Name AS customer_name, R.first_name AS salesperson_first_name, R.last_name AS salesperson_last_name 
+                    FROM customer_u C INNER JOIN report R ON C.customerID = R.customerID 
+                    ORDER BY R.Purchase_Date DESC, ratio DESC
+
+";
+
+----------------------------------------------------------
+19. From report_average_time_in_inventory.php.php
+
+$query = "
+WITH
+vehicle_type_options AS(
+  SELECT 'Car' AS vehicle_type
+  UNION
+  SELECT 'Convertible' AS vehicle_type
+  UNION
+  SELECT 'Truck' AS vehicle_type
+  UNION
+  SELECT 'VAN_MiniVAN' AS vehicle_type
+  UNION
+  SELECT 'SUV' AS vehicle_type
+),
+
+vehicle_car AS(
+  SELECT VIN, 'Car' AS vehicle_type
+  FROM Car
+),
+vehicle_convertible AS(
+  SELECT VIN, 'Convertible' AS vehicle_type
+  FROM Convertible
+), 
+vehicle_truck AS(
+  SELECT VIN, 'Truck' AS vehicle_type
+  FROM Truck
+), 
+vehicle_van_minivan AS(
+  SELECT VIN, 'VAN_MiniVAN' AS vehicle_type
+  FROM VAN_MiniVAN
+), 
+vehicle_suv AS(
+  SELECT VIN, 'SUV' AS vehicle_type
+  FROM SUV
+), 
+vehicle_u AS (
+  SELECT VIN, vehicle_type FROM vehicle_car
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_convertible
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_truck
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_van_minivan
+  UNION
+  SELECT VIN, vehicle_type FROM vehicle_suv
+),
+
+vehicle_info AS(
+  SELECT v.VIN, vu.vehicle_type, v.added_date
+  FROM vehicle_u vu INNER JOIN Vehicle v
+  ON vu.VIN = v.VIN
+),
+
+report AS(
+SELECT V.vehicle_type, AVG(DATEDIFF(S.Purchase_Date, V.added_date) + 1) AS avg_days_in_inventory
+FROM vehicle_info V INNER JOIN SalesTransaction S
+ON V.VIN = S.VIN
+GROUP BY vehicle_type
+)
+
+SELECT VO.vehicle_type, IFNULL(R.avg_days_in_inventory, 'N/A') AS avg_days_in_inventory
+FROM vehicle_type_options VO LEFT JOIN report R
+ON VO.vehicle_type = R.vehicle_type
+ORDER BY vehicle_type ASC
+";
+
+
+----------------------------------------------------------
+20. From report_parts_statistics.php
+                    $query = " 
+                    SELECT vendor_name, sum(quantity) AS total_supply_quantity, sum(price * quantity) AS total_spent_on_parts FROM Part GROUP BY vendor_name ORDER BY sum(price * quantity) DESC
+
+----------------------------------------------------------
+21. From report_monthly_sales.php
+                    $query = "SELECT YEAR(S.Purchase_Date) AS Year, MONTH(S.Purchase_Date) AS Month, COUNT(S.VIN) AS total_number_sold, SUM(S.sold_price) AS income, (SUM(S.sold_price) - SUM(V.invoice_price)) AS net_income, CONCAT((SUM(S.sold_price) / SUM(V.invoice_price)*100),'%') AS ratio
+FROM SalesTransaction S INNER JOIN Vehicle V
+ON S.VIN = V.VIN
+GROUP BY YEAR(S.Purchase_Date), MONTH(S.Purchase_Date)
+ORDER BY YEAR(S.Purchase_Date) DESC, MONTH(S.Purchase_Date) DESC";
+
+----------------------------------------------------------
+22. From report_monthly_sales_drill_down.php
+                    <?php
+                    $query = "SELECT SP.first_name, SP.last_name, COUNT(S.VIN) AS total_number_sold, SUM(S.sold_price) AS total_sales
+FROM SalesTransaction S INNER JOIN Vehicle V INNER JOIN LoggedInUser SP ON S.VIN = V.VIN AND S.userName = SP.userName
+WHERE YEAR(S.Purchase_Date) = '$Year' AND MONTH(S.Purchase_Date) = '$Month' GROUP BY S.userName
+ORDER BY total_number_sold DESC, total_sales DESC, last_name, first_name
+";
